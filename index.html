@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Тренажёр ПМ 8</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one centered working column — toolbar, question map, then the active card (quiz or cheat sheet). */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --sunk:#e9eef2; --ink:#13202a; --muted:#5a6a76; --line:#d6dee4;
+  --accent:#2c5bd0; --accent-soft:#e3eafb; --on-accent:#ffffff;
+  --pass:#17803a; --pass-soft:#e2f3e7; --fail:#c2342c; --fail-soft:#fbe5e3;
+  --code-bg:#0f1a23; --code-ink:#d8e4ec;
+  --f-text:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1418; --surface:#161f26; --sunk:#1c2730; --ink:#e3eaef; --muted:#93a3ae; --line:#27343e;
+  --accent:#7ea3ff; --accent-soft:#1d2a47; --on-accent:#0e1418;
+  --pass:#46c06a; --pass-soft:#16301f; --fail:#f2695f; --fail-soft:#3a1b19;
+  --code-bg:#0a1015; --code-ink:#d8e4ec; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0e1418; --surface:#161f26; --sunk:#1c2730; --ink:#e3eaef; --muted:#93a3ae; --line:#27343e;
+  --accent:#7ea3ff; --accent-soft:#1d2a47; --on-accent:#0e1418;
+  --pass:#46c06a; --pass-soft:#16301f; --fail:#f2695f; --fail-soft:#3a1b19;
+  --code-bg:#0a1015; --code-ink:#d8e4ec; color-scheme:dark;}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-text);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 56px}
+.wrap{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-size:clamp(22px,4vw,30px);font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
+.sub b{color:var(--ink);font-weight:600}
+code{font-family:var(--f-mono);font-size:.88em;background:var(--sunk);padding:1px 5px;border-radius:4px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--sunk);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.warn{color:var(--fail)}
+.btn:disabled{opacity:.45;cursor:default}
+.spacer{flex:1}
+
+.map{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.map summary{cursor:pointer;font-weight:700;font-size:14px;list-style-position:inside}
+.map summary span{font-weight:500;color:var(--muted);font-family:var(--f-mono);font-size:12.5px;margin-left:6px}
+.map:not([open]){padding-block:12px}
+@media (max-width:600px){
+  body{padding-block:16px 40px}
+  .wrap{gap:14px}
+  .bar{gap:8px}
+  .chk{font-size:13px}
+  .cells{grid-template-columns:repeat(auto-fill,minmax(38px,1fr))}
+  .cell{padding:8px 0}
+  .opt{padding:12px}
+  .hint{display:none}
+  .nav .btn{flex:1;padding:11px 12px}
+}
+.map-head{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted);align-items:center}
+.map-head strong{color:var(--ink);font-variant-numeric:tabular-nums}
+.legend{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:3px;background:var(--sunk);border:1px solid var(--line)}
+.dot.ok{background:var(--pass);border-color:var(--pass)} .dot.no{background:var(--fail);border-color:var(--fail)}
+.grp{display:flex;flex-direction:column;gap:6px}
+.grp-label{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px}
+.cell{border:1px solid var(--line);background:var(--sunk);border-radius:6px;font-family:var(--f-mono);font-size:11.5px;padding:5px 0;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.cell.ok{background:var(--pass-soft);border-color:var(--pass);color:var(--pass)}
+.cell.no{background:var(--fail-soft);border-color:var(--fail);color:var(--fail)}
+.cell.cur{outline:2px solid var(--accent);outline-offset:1px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,3vw,26px);display:flex;flex-direction:column;gap:16px;min-width:0}
+.meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;font-family:var(--f-mono);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meta .tally b{color:var(--pass)} .meta .tally i{font-style:normal;color:var(--fail)}
+.prog{height:4px;background:var(--sunk);border-radius:4px;overflow:hidden}
+.prog span{display:block;height:100%;background:var(--accent);transition:width .25s ease}
+.qtext{font-size:clamp(17px,2.4vw,19px);font-weight:650;line-height:1.45;margin:0;text-wrap:pretty}
+pre{margin:0;background:var(--code-bg);color:var(--code-ink);font-family:var(--f-mono);font-size:13.5px;line-height:1.6;padding:14px 16px;border-radius:10px;overflow-x:auto;white-space:pre}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:11px 13px;transition:border-color .12s,background .12s}
+.opt:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.opt:disabled{cursor:default}
+.opt .l{flex:none;width:26px;height:26px;border-radius:7px;background:var(--sunk);display:grid;place-items:center;font-family:var(--f-mono);font-weight:600;font-size:13px}
+.opt .t{min-width:0;padding-top:2px;overflow-wrap:anywhere}
+.opt.good{border-color:var(--pass);background:var(--pass-soft)} .opt.good .l{background:var(--pass);color:var(--surface)}
+.opt.bad{border-color:var(--fail);background:var(--fail-soft)} .opt.bad .l{background:var(--fail);color:var(--surface)}
+.opt.dim{opacity:.55}
+.fb{border-radius:10px;padding:12px 14px;font-size:14.5px;display:flex;flex-direction:column;gap:4px}
+.fb.ok{background:var(--pass-soft);border:1px solid var(--pass)} .fb.no{background:var(--fail-soft);border:1px solid var(--fail)}
+.fb .h{font-weight:700} .fb.ok .h{color:var(--pass)} .fb.no .h{color:var(--fail)}
+.fb .orig{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:12.5px;color:var(--muted)}
+.hint kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--sunk)}
+
+.term{background:var(--code-bg);color:var(--code-ink);font-family:var(--f-mono);font-size:13.5px;line-height:1.7;padding:16px;border-radius:10px;overflow-x:auto;white-space:pre}
+.term .p{color:#7ea3ff} .term .g{color:#46c06a} .term .r{color:#f2695f}
+
+.search{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit}
+.list{display:flex;flex-direction:column;gap:12px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.item .num{font-family:var(--f-mono);font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center}
+.item .q{font-weight:650;margin:0}
+.item ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:14px}
+.item li{display:flex;gap:8px;color:var(--muted);padding:3px 8px;border-radius:6px;overflow-wrap:anywhere}
+.item li b{font-family:var(--f-mono);flex:none}
+.item li.ans{color:var(--ink);background:var(--pass-soft);font-weight:600}
+.item li.ans b{color:var(--pass)}
+.note{font-size:14px;color:var(--muted);border-left:3px solid var(--accent);padding-left:10px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+.badge{font-size:11px;padding:1px 7px;border-radius:20px;font-family:var(--f-text);font-weight:600}
+.badge.ap{background:var(--accent-soft);color:var(--accent)}
+.badge.ok{background:var(--pass-soft);color:var(--pass)} .badge.no{background:var(--fail-soft);color:var(--fail)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Тренажёр ПМ 8</h1>
+    <p class="sub"><b>150 вопросов</b> · 1–38 ООП в C# · 39–76 Проектирование модулей · 77–113 Сборка .NET · 114–150 Конвертация данных</p>
+  </header>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Режим">
+      <button id="m-quiz" data-mode="quiz">Тест</button>
+      <button id="m-list" data-mode="list">Шпаргалка</button>
+    </div>
+    <div class="seg" role="group" aria-label="Раздел">
+      <button id="s-all" data-sec="all">Все</button>
+      <button id="s-81" data-sec="8.1">1–38</button>
+      <button id="s-82" data-sec="8.2">39–76</button>
+      <button id="s-83" data-sec="8.3">8.3</button>
+      <button id="s-84" data-sec="8.4">8.4</button>
+    </div>
+  </div>
+  <div class="bar" id="quizbar">
+    <label class="chk"><input type="checkbox" id="shq"> Перемешать вопросы</label>
+    <label class="chk"><input type="checkbox" id="sho"> Перемешать варианты</label>
+    <span class="spacer"></span>
+    <button class="btn" id="wrongBtn">Только ошибки</button>
+    <button class="btn" id="restartBtn">Заново</button>
+  </div>
+
+  <details class="map" id="mapBox" open>
+    <summary>Карта вопросов <span id="sumTxt"></span></summary>
+    <div class="map-head">
+      <span>Отвечено верно: <strong id="cOk">0</strong></span>
+      <span>С ошибкой: <strong id="cNo">0</strong></span>
+      <span>Не пройдено: <strong id="cNone">0</strong></span>
+      <span class="spacer"></span>
+      <span class="legend"><i class="dot ok"></i>верно</span>
+      <span class="legend"><i class="dot no"></i>ошибка</span>
+      <button class="btn warn" id="resetBtn" style="padding:3px 9px;font-size:12.5px">Сбросить прогресс</button>
+    </div>
+    <div id="cells"></div>
+  </details>
+
+  <main id="main"></main>
+</div>
+
+<script>
+const Q = [
+[1, "8.1", "Объектіге бағытталған бағдарламалау парадигмасының негізгі тұжырымдамасы қандай?", null, ["Бағдарламаны тек функциялар тізбегі ретінде жазу", "Барлық кодты бір файлда сақтау", "Бағдарламаны тек ассемблер тілінде жазу", "Айнымалыларды мүлдем қолданбау", "Бағдарламаны деректер мен әрекеттерді біріктіретін объектілер жиынтығы ретінде ұсыну (класстар мен объектілер)"], 4, "ООП: программа — набор объектов (экземпляров классов), которые объединяют данные и поведение."],
+[2, "8.1", "Әдісті шақырған кезде C# тіліндегі берілген код нені шығарады?", "class Person\n{\n    public string Name = \"Alex\";\n}\nPerson p = new Person();\nConsole.Write(p.Name);", ["Alex", "Name", "null", "Person", "Компиляция қатесі"], 0, "Поле Name инициализировано значением \"Alex\"."],
+[3, "8.1", "Қандай қол жеткізу модификаторы класс элементін ТЕК осы класстың ішінде қолжетімді етеді?", null, ["public", "private", "protected", "internal", "static"], 1, "private — доступ только внутри самого класса."],
+[4, "8.1", "C# тіліндегі класс конструкторы қандай рөл атқарады?", null, ["Объектіні жадтан жояды", "Класты басқа класқа мұраға береді", "Объект жасалған кезде оны инициализациялайды (өрістерге бастапқы мәндер береді)", "Әдістерді статикалық етеді", "Бағдарламаны компиляциялайды"], 2, "Конструктор вызывается при new и задаёт начальное состояние объекта."],
+[5, "8.1", "C# тіліндегі келесі код үзіндісі нені шығарады?", "class Car\n{\n    public int Speed;\n    public Car(int speed)\n    {\n        Speed = speed;\n    }\n}\nCar c = new Car(100);\nConsole.Write(c.Speed);", ["0", "Speed", "null", "100", "Компиляция қатесі"], 3, "Конструктор записал 100 в поле Speed."],
+[6, "8.1", "Объектіге бағытталған бағдарламалауда (ООП) инкапсуляция деп нені түсінеді?", null, ["Бір класты басқасынан мұраға алу", "Бір әдістің әртүрлі іске асырылуы", "Объектілерді жадтан жою", "Кодты бірнеше файлға бөлу", "Объектінің ішкі күйін жасырып, оған тек ашық әдістер мен қасиеттер арқылы қол жеткізу"], 4, "Инкапсуляция — скрыть внутреннее состояние, доступ только через публичные методы и свойства."],
+[7, "8.1", "C# тіліндегі қандай қол жеткізу модификаторы класс мүшесіне ағымдағы жинақ (.dll/.exe) шегінде қолжетімділікке рұқсат береді?", null, ["internal", "private", "protected", "public", "sealed"], 0, "internal — доступ в пределах текущей сборки."],
+[8, "8.1", "Жеке (private) айнымалыға қол жеткізуге тырысқанда бұл код нені шығарады?", "class Account\n{\n    private int balance = 500;\n}\nAccount acc = new Account();\nConsole.Write(acc.balance);", ["500", "CS0122 компиляция қатесі: balance қорғау деңгейіне байланысты қолжетімсіз", "0", "null", "NullReferenceException"], 1, "private-поле снаружи недоступно — ошибка компиляции CS0122."],
+[9, "8.1", "C# тілінде автоқасиеттер (Auto-Properties) не үшін қолданылады?", null, ["Класты абстрактілі ету үшін", "Әдістерді қайта жүктеу үшін", "Жасырын өрісті (backing field) қолмен жарияламай, қасиетті қысқаша жариялау үшін: `public int Age { get; set; }`", "Ерекше жағдайларды өңдеу үшін", "Интерфейсті іске асыру үшін"], 2, "Автосвойство — короткая запись свойства, поле компилятор создаёт сам."],
+[10, "8.1", "Логикасы бар қасиетті қолданатын C# код үзіндісі нені шығарады?", "class User\n{\n    private int _age;\n    public int Age\n    {\n        get => _age;\n        set => _age = value < 0 ? 0 : value;\n    }\n}\nUser u = new User();\nu.Age = -15;\nConsole.Write(u.Age);", ["-15", "15", "null", "0", "ArgumentException"], 3, "Сеттер заменяет отрицательное значение на 0."],
+[11, "8.1", "C# тілінде бір класты екіншісінен мұрагерлікке алу үшін қандай кілт сөз қолданылады?", null, ["extends", "inherits", "implements", "base", "`:` (қос нүкте)"], 4, "В C# наследование пишется через двоеточие: `class Dog : Animal`."],
+[12, "8.1", "Мұраланған әдісті шақырған кезде бұл код нені шығарады?", "class Animal\n{\n    public void Eat() => Console.Write(\"Food\");\n}\nclass Dog : Animal { }\n\nDog d = new Dog();\nd.Eat();", ["Food", "Dog", "Animal", "Ештеңе шығармайды", "Компиляция қатесі"], 0, "Dog унаследовал метод Eat от Animal."],
+[13, "8.1", "C# тілінде негізгі класста еншілес класқа әдісті қайта анықтауға рұқсат беру үшін қандай кілт сөз қолданылады?", null, ["override", "virtual", "sealed", "static", "new"], 1, "virtual в базовом классе разрешает переопределение."],
+[14, "8.1", "C# тілінде негізгі класстың виртуалды әдісін қайта анықтау үшін еншілес класста қандай кілт сөз қолданылады?", null, ["virtual", "base", "override", "abstract", "this"], 2, "override в наследнике переопределяет virtual-метод."],
+[15, "8.1", "Полиморфизмі бар келесі код үзіндісі нені шығарады?", "class Printer\n{\n    public virtual void Print() => Console.Write(\"Base\");\n}\nclass ColorPrinter : Printer\n{\n    public override void Print() => Console.Write(\"Color\");\n}\nPrinter p = new ColorPrinter();\np.Print();", ["Base", "BaseColor", "ColorBase", "Color", "Компиляция қатесі"], 3, "Полиморфизм: вызывается метод реального типа объекта (ColorPrinter)."],
+[16, "8.1", "Негізгі класқа base кілт сөзі арқылы қол жеткізген кезде бұл код нені шығарады?", "class Parent\n{\n    public virtual void Greet() => Console.Write(\"Hi\");\n}\nclass Child : Parent\n{\n    public override void Greet()\n    {\n        base.Greet();\n        Console.Write(\"!\");\n    }\n}\nChild c = new Child();\nc.Greet();", ["Hi", "!", "!Hi", "StackOverflowException", "Hi!"], 4, "Сначала base.Greet() печатает Hi, затем \"!\"."],
+[17, "8.1", "C# тілінде қандай кілт сөз осы класстан әрі қарай мұрагерлікке алуға тыйым салады?", null, ["sealed", "static", "private", "readonly", "const"], 0, "sealed запрещает наследоваться от класса."],
+[18, "8.1", "sealed модификаторы бар класстан мұрагерлікке алуға тырысқанда қандай қате орын алады?", "sealed class FinalClass { }\nclass SubClass : FinalClass { }", ["Бағдарлама сәтті компиляцияланады", "CS0509 компиляция қатесі: sealed типінен мұрагерлік алуға болмайды", "NullReferenceException", "Орындау кезінде InvalidCastException", "Тек ескерту шығады"], 1, "От sealed-класса наследоваться нельзя — ошибка компиляции CS0509."],
+[19, "8.1", "C# тіліндегі абстрактілі класс дегеніміз не?", null, ["Тек статикалық әдістері бар класс", "Мұраға алуға тыйым салынған класс", "Данасын тікелей жасауға болмайтын, іске асырылмаған (abstract) әдістері болуы мүмкін, еншілес класстар үшін негіз болатын класс", "Тек өрістерден тұратын құрылым", "Бір ғана данасы бар класс"], 2, "Абстрактный класс: new сделать нельзя, может иметь abstract-методы без реализации, служит базой."],
+[20, "8.1", "Абстрактілі класы бар келесі код үзіндісі нені шығарады?", "abstract class Appliance\n{\n    public abstract void TurnOn();\n}\nclass Lamp : Appliance\n{\n    public override void TurnOn() => Console.Write(\"Light\");\n}\nAppliance a = new Lamp();\na.TurnOn();", ["TurnOn", "Appliance", "Ештеңе шығармайды", "Light", "Компиляция қатесі"], 3, "Вызывается реализация из Lamp."],
+[21, "8.1", "C# тіліндегі интерфейс (interface) дегеніміз не?", null, ["Тек өрістері бар класс", "Графикалық пайдаланушы интерфейсі", "Статикалық класс", "Мәндік тип", "Класс іске асыруы тиіс әдістер мен қасиеттер қолтаңбаларының жиынтығын анықтайтын келісімшарт (контракт)"], 4, "Интерфейс — контракт: набор сигнатур методов и свойств, которые класс обязан реализовать."],
+[22, "8.1", "C# тілінде класс интерфейсті іске асыру үшін қандай кілт сөз қолданылады?", null, ["`:` (қос нүкте)", "implements", "extends", "interface", "using"], 0, "Интерфейс тоже указывается через двоеточие: `class A : IRunner`."],
+[23, "8.1", "C# тілінде бір класс бір мезгілде қанша интерфейсті іске асыра алады?", null, ["Тек біреуін", "Кез келген санын (шектеусіз)", "Ең көбі екеуін", "Ең көбі бесеуін", "Мүлдем іске асыра алмайды"], 1, "Класс наследует максимум один класс, но интерфейсов может реализовать сколько угодно."],
+[24, "8.1", "C# тілінде интерфейсті анық (explicit) іске асырған кезде код нені шығарады?", "interface IRunner\n{\n    void Run();\n}\nclass Athlete : IRunner\n{\n    void IRunner.Run() => Console.Write(\"Running\");\n}\nIRunner r = new Athlete();\nr.Run();", ["Run", "IRunner", "Running", "Ештеңе шығармайды", "Компиляция қатесі"], 2, "Явная реализация доступна через переменную типа интерфейса — r имеет тип IRunner."],
+[25, "8.1", "C# тіліндегі қандай кілт сөз объект жасамай-ақ қолжетімді статикалық әдіс немесе класс жасауға мүмкіндік береді?", null, ["const", "sealed", "virtual", "static", "abstract"], 3, "static — член принадлежит классу, а не объекту."],
+[26, "8.1", "Статикалық қасиеті бар келесі код үзіндісі нені шығарады?", "class Counter\n{\n    public static int Count = 0;\n    public Counter()\n    {\n        Count++;\n    }\n}\nnew Counter();\nnew Counter();\nConsole.Write(Counter.Count);", ["0", "1", "3", "Компиляция қатесі", "2"], 4, "Статическое поле общее для всех объектов; два вызова конструктора → 2."],
+[27, "8.1", "C# тіліндегі мәндік тип (struct) пен сілтемелік тип (class) арасындағы басты айырмашылық неде?", null, ["struct — мәндік тип: меншіктегенде және әдіске бергенде көшіріледі; class — сілтемелік тип: объектіге сілтеме беріледі", "Олардың арасында айырмашылық жоқ", "struct әдістерді қамти алмайды", "class тек стекте сақталады", "struct тек статикалық бола алады"], 0, "struct копируется целиком, class передаётся по ссылке на один и тот же объект."],
+[28, "8.1", "Құрылымды әдіске бергенде келесі код үзіндісі нені шығарады?", "struct Point\n{\n    public int X;\n}\nstatic void Change(Point p)\n{\n    p.X = 100;\n}\nPoint pt = new Point { X = 10 };\nChange(pt);\nConsole.Write(pt.X);", ["100", "10", "110", "0", "Компиляция қатесі"], 1, "В метод попала копия struct — оригинал остался 10."],
+[29, "8.1", "КЛАССТЫ әдіске бергенде ұқсас код үзіндісі нені шығарады?", "class PointClass\n{\n    public int X;\n}\nstatic void Change(PointClass p)\n{\n    p.X = 100;\n}\nPointClass pt = new PointClass { X = 10 };\nChange(pt);\nConsole.Write(pt.X);", ["10", "110", "100", "0", "NullReferenceException"], 2, "Класс передаётся по ссылке — метод изменил тот же объект."],
+[30, "8.1", "C# 9.0+ нұсқасында жазба типтері (record) не үшін қолданылады?", null, ["Ерекше жағдайларды тіркеу үшін", "Дыбыс жазу үшін", "Деректер базасын жасау үшін", "Мәндері бойынша салыстырылатын, негізінен өзгермейтін (immutable) деректер модельдерін қысқаша жариялау үшін", "Көп ағынды бағдарламалау үшін"], 3, "record — неизменяемые модели данных, сравниваются по значениям полей."],
+[31, "8.1", "Екі жазбаны (record) салыстырған кезде C# кодының бұл үзіндісі нені шығарады?", "public record Item(string Name, int Price);\n\nItem i1 = new Item(\"Pen\", 10);\nItem i2 = new Item(\"Pen\", 10);\nConsole.Write(i1 == i2);", ["False", "Pen", "10", "Компиляция қатесі", "True"], 4, "record сравнивается по значениям: поля совпадают → True."],
+[32, "8.1", "Қандай кілт сөз параметрді әдіске сілтеме бойынша (by reference) оны өзгерту мүмкіндігімен беруге мүмкіндік береді?", null, ["ref", "in", "params", "this", "base"], 0, "ref — передача по ссылке с возможностью изменить значение."],
+[33, "8.1", "ref модификаторын қолданатын бұл код нені шығарады?", "static void Modify(ref int n) => n += 5;\n\nint num = 10;\nModify(ref num);\nConsole.Write(num);", ["10", "15", "5", "0", "Компиляция қатесі"], 1, "По ref метод меняет саму переменную: 10 + 5 = 15."],
+[34, "8.1", "C# тіліндегі out модификаторының ref модификаторынан айырмашылығы неде?", null, ["Олардың арасында айырмашылық жоқ", "out тек мәндік типтермен жұмыс істейді", "out параметрін беру алдында инициализациялау міндетті емес, бірақ әдіс ішінде оған мән меншіктелуі тиіс; ref параметрі алдын ала инициализациялануы тиіс", "ref тек массивтер үшін қолданылады", "out параметрді тек оқуға мүмкіндік береді"], 2, "out: можно не инициализировать до вызова, но метод обязан присвоить. ref: инициализировать до вызова."],
+[35, "8.1", "this кілт сөзі бар келесі код үзіндісі нені шығарады?", "class Box\n{\n    private int w;\n    public Box(int w)\n    {\n        this.w = w;\n    }\n    public int GetW() => w;\n}\nBox b = new Box(42);\nConsole.Write(b.GetW());", ["0", "w", "null", "42", "Компиляция қатесі"], 3, "this.w — поле, w — параметр; поле получило 42."],
+[36, "8.1", "C# тілінде деструктор (~ClassName()) шақырылғанда не болады?", null, ["Объект жасалған кезде шақырылады", "Бағдарламашы оны тікелей шақырған кезде бірден орындалады", "Класты мұрагерліктен қорғайды", "Әдістерді қайта жүктейді", "Объект жадтан босатылар алдында оны қоқыс жинаушы (GC) шақырады; шақыру уақыты алдын ала белгісіз"], 4, "Деструктор (финализатор) вызывает сборщик мусора перед освобождением памяти; момент заранее неизвестен."],
+[37, "8.1", "Класста аты бірдей, бірақ параметрлерінің типтері/саны әртүрлі бірнеше әдіс жарияланса, не болады?", null, ["Әдістерді қайта жүктеу (overloading): компилятор аргументтерге қарай қажетті нұсқаны таңдайды", "Компиляция қатесі", "Тек соңғы жарияланған әдіс қалады", "Орындау кезінде ерекше жағдай туындайды", "Әдістер автоматты түрде жойылады"], 0, "Это перегрузка методов — разрешено, нужную версию выбирает компилятор по аргументам."],
+[38, "8.1", "Келесі қайта жүктелген әдіс нені шығарады?", "class Calc\n{\n    public int Add(int a, int b) => a + b;\n    public string Add(string a, string b) => a + b;\n}\nCalc c = new Calc();\nConsole.Write(c.Add(\"1\", \"2\"));", ["3", "12", "1 2", "Компиляция қатесі", "0"], 1, "Аргументы — строки, вызывается строковая версия: \"1\" + \"2\" = \"12\"."],
+[39, "8.2", "Бағдарламалық жасақтаманы жобалауда SOLID аббревиатурасы нені білдіреді?", null, ["Деректер базасының бес түрі", "C# тілінің бес кілт сөзі", "Объектіге бағытталған жобалаудың бес принципі: SRP, OCP, LSP, ISP, DIP", "Тестілеудің бес кезеңі", "Бес жобалау паттерні"], 2, "SOLID — пять принципов ООП-проектирования: SRP, OCP, LSP, ISP, DIP."],
+[40, "8.2", "Бірыңғай жауапкершілік принципі (Single Responsibility Principle — SRP) неде?", null, ["Класста тек бір әдіс болуы тиіс", "Бағдарламада тек бір класс болуы тиіс", "Әр класс жеке файлда болуы тиіс", "Класстың тек бір жауапкершілігі (өзгеруге бір ғана себебі) болуы тиіс", "Класс тек бір интерфейсті іске асыруы тиіс"], 3, "SRP: у класса одна ответственность — одна причина для изменения."],
+[41, "8.2", "Егер класс SRP принципін бұзса (God Object / «Құдайлық объект» болып табылса), қандай мәселе туындайды?", null, ["Бағдарлама жылдамырақ жұмыс істейді", "Код автоматты түрде құжатталады", "Жад тұтыну азаяды", "Ешқандай мәселе туындамайды", "Класс тым күрделі болады: оны түсіну, тестілеу және өзгерту қиын, бір өзгеріс басқа функцияларды бұзуы мүмкін"], 4, "God Object трудно понимать, тестировать и менять: правка одного ломает другое."],
+[42, "8.2", "Ашықтық/жабықтық принципі (Open/Closed Principle — OCP) неде?", null, ["Бағдарламалық бірліктер кеңейту үшін ашық, ал өзгерту үшін жабық болуы тиіс", "Барлық өрістер public болуы тиіс", "Класстардың бастапқы коды ашық болуы тиіс", "Файлдарды тек оқу үшін ашу керек", "Әдістер тек бір рет шақырылуы тиіс"], 0, "OCP: открыт для расширения, закрыт для изменения."],
+[43, "8.2", "Барбара Лисков алмастыру принципі (Liskov Substitution Principle — LSP) нені растайды?", null, ["Әр класс тек бір әдістен тұруы тиіс", "Еншілес класс объектілері бағдарламаның дұрыстығын бұзбай, негізгі класс объектілерінің орнына қолданыла алуы тиіс", "Үлкен интерфейстерді бөлу керек", "Тәуелділіктер абстракцияларға бағытталуы тиіс", "Класстарды мұрагерлікке алуға болмайды"], 1, "LSP: наследник должен подставляться вместо базового класса без поломки программы."],
+[44, "8.2", "Интерфейстерді бөлу принципі (Interface Segregation Principle — ISP) неде?", null, ["Әр класс тек бір интерфейсті іске асыруы тиіс", "Интерфейстер өрістерді қамтуы тиіс", "Клиенттер өздері қолданбайтын әдістері бар интерфейстерге тәуелді болмауы тиіс: үлкен интерфейсті бірнеше кішісіне бөлу керек", "Интерфейстерді мүлдем қолданбау керек", "Барлық әдістер бір интерфейсте болуы тиіс"], 2, "ISP: много маленьких интерфейсов лучше одного «толстого»."],
+[45, "8.2", "Тәуелділіктерді инверсиялау принципі (Dependency Inversion Principle — DIP) неде?", null, ["Төмен деңгейлі модульдер жоғары деңгейлілерді басқаруы тиіс", "Тәуелділіктерді тек статикалық класстар арқылы беру керек", "Барлық класстар sealed болуы тиіс", "Жоғары деңгейлі модульдер төмен деңгейлі модульдерге тәуелді болмауы тиіс; екеуі де абстракцияларға тәуелді болуы керек", "Тәуелділіктерді мүлдем қолданбау керек"], 3, "DIP: модули верхнего и нижнего уровня зависят от абстракций (интерфейсов), а не друг от друга."],
+[46, "8.2", "Код байланыстылығының қандай мәселесі «Жоғары байланыстылық» (High Coupling) терминімен белгіленеді?", null, ["Модуль ішіндегі элементтердің бір мақсатқа жақсы біріктірілуі", "Кодтың жоғары өнімділігі", "Модульдердің толық тәуелсіздігі", "Кодтың аз көлемі", "Модульдер бір-біріне қатты тәуелді: біреуін өзгерту басқаларын да өзгертуді талап етеді"], 4, "High Coupling — модули сильно связаны, изменение одного тянет изменения в других."],
+[47, "8.2", "C# модульдерін жобалау кезінде код сапасының қандай қасиетіне ұмтылу керек?", null, ["Төмен байланыстылық (Low Coupling) және жоғары біртұтастық (High Cohesion)", "Жоғары байланыстылық және төмен біртұтастық", "Барлық кодты бір класқа жинау", "Глобалдық айнымалыларды көп қолдану", "Әдістердің ұзындығын арттыру"], 0, "Цель: слабая связанность (Low Coupling) и высокая связность внутри модуля (High Cohesion)."],
+[48, "8.2", "C# тіліндегі ерекше жағдайларды өңдеудің бұл блогы нені шығарады?", "try\n{\n    int x = 0;\n    int y = 10 / x;\n}\ncatch (DivideByZeroException)\n{\n    Console.Write(\"ZeroErr\");\n}\nfinally\n{\n    Console.Write(\"Finally\");\n}", ["ZeroErr", "ZeroErrFinally", "Finally", "FinallyZeroErr", "DivideByZeroException"], 1, "Сработал catch (ZeroErr), потом всегда выполняется finally."],
+[49, "8.2", "Пайдаланушылық ерекше жағдайды генерациялаған кезде бұл код нені шығарады?", "static void CheckAge(int age)\n{\n    if (age < 0) throw new ArgumentException(\"Invalid\");\n}\ntry\n{\n    CheckAge(-5);\n}\ncatch (ArgumentException ex)\n{\n    Console.Write(ex.Message);\n}", ["ArgumentException", "-5", "Invalid", "Ештеңе шығармайды", "Компиляция қатесі"], 2, "ex.Message — текст, переданный в исключение: \"Invalid\"."],
+[50, "8.2", "catch (Exception ex) блогының ішінде throw; және throw ex; шақыруларының басты айырмашылығы неде?", null, ["Олардың арасында айырмашылық жоқ", "throw ex; ерекше жағдайды жояды", "throw; бағдарламаны бірден тоқтатады", "throw; бастапқы стек трассасын сақтап, ерекше жағдайды қайта лақтырады; throw ex; стек трассасын осы жолдан қайта бастайды", "throw; тек finally ішінде жұмыс істейді"], 3, "throw; сохраняет исходный стек вызовов, throw ex; сбрасывает его на текущую строку."],
+[51, "8.2", "Қандай жобалау паттерні (Design Pattern) жүйеде класстың тек бір данасының болуын кепілдендіреді?", null, ["Factory Method", "Strategy", "Observer", "Adapter", "Singleton (Жалғыз)"], 4, "Singleton — ровно один экземпляр класса."],
+[52, "8.2", "Singleton паттернін іске асыратын бұл C# коды нені шығарады?", "class Singleton\n{\n    private static Singleton _instance;\n    public static Singleton Instance => _instance ??= new Singleton();\n}\nvar s1 = Singleton.Instance;\nvar s2 = Singleton.Instance;\nConsole.Write(s1 == s2);", ["True", "False", "Singleton", "null", "NullReferenceException"], 0, "Оба раза возвращается один и тот же объект → True."],
+[53, "8.2", "«Фабрикалық әдіс» (Factory Method) паттерні не үшін қолданылады?", null, ["Класстың бір ғана данасын кепілдендіру үшін", "Объект жасауды еншілес класстарға беру үшін: клиент нақты класты көрсетпей объект алады", "Алгоритмдерді орындау кезінде ауыстыру үшін", "Объектілерді жадтан жою үшін", "Деректер базасына қосылу үшін"], 1, "Factory Method — создание объектов делегируется наследникам, клиент не знает конкретный класс."],
+[54, "8.2", "«Стратегия» (Strategy) паттерні не үшін қолданылады?", null, ["Класстың бір данасын жасау үшін", "Объектілерді жасау үшін", "Алгоритмдер тобын анықтап, әрқайсысын жеке класқа инкапсуляциялап, оларды орындау кезінде өзара алмастыру үшін", "Сыйыспайтын интерфейстерді біріктіру үшін", "Оқиғаларға жазылу үшін"], 2, "Strategy — семейство взаимозаменяемых алгоритмов, выбираемых во время выполнения."],
+[55, "8.2", "Объектіге бағытталған модульдегі «Код иісі» (Code Smell) деген не?", null, ["Компиляция қатесі", "Компьютер вирусы", "Кодқа жазылған түсініктеме", "Кодтағы жобалау мәселесін көрсететін белгі (қайталану, тым ұзын әдістер, үлкен класстар), бірақ қате емес", "Орындау кезіндегі ерекше жағдай"], 3, "Code Smell — признак плохого дизайна (дубли, длинные методы), но не ошибка."],
+[56, "8.2", "Бағдарламалық модульді рефакторингтеу деп нені түсінеді?", null, ["Жаңа функционал қосу", "Қателерді іздеу үшін тестілеу", "Бағдарламаны басқа тілге аудару", "Кодты толық жойып, қайта жазу", "Кодтың сыртқы әрекетін өзгертпей, оның ішкі құрылымын жақсарту"], 4, "Рефакторинг — улучшение структуры кода без изменения поведения."],
+[57, "8.2", "DRY (Don't Repeat Yourself) принципін қолданудың басты ережесі қандай?", null, ["Бір логиканы қайталамау: әр білім жүйеде бір ғана жерде анықталуы тиіс", "Кодқа түсініктеме жазбау", "Әр әдісті екі рет жазу", "Циклдерді қолданбау", "Айнымалыларды қайта пайдаланбау"], 0, "DRY — не дублировать логику, каждая вещь описана в одном месте."],
+[58, "8.2", "KISS (Keep It Simple, Stupid) принципінің мәні неде?", null, ["Айнымалыларға тек бір әріпті аттар беру", "Шешімдерді мүмкіндігінше қарапайым жасау, қажетсіз күрделіліктен аулақ болу", "Барлық кодты бір әдіске жазу", "Тек ескі технологияларды қолдану", "Тестілеуден бас тарту"], 1, "KISS — делать как можно проще, без лишней сложности."],
+[59, "8.2", "YAGNI (You Aren't Gonna Need It) принципі нені растайды?", null, ["Барлық мүмкін функцияларды алдын ала іске асыру", "Кодты ешқашан өзгертпеу", "Функционалды ол шынымен қажет болғанда ғана іске асыру; «болашаққа» артық код жазбау", "Тек сыртқы кітапханаларды қолдану", "Әр класқа интерфейс жасау"], 2, "YAGNI — не писать функционал «на будущее», пока он не нужен."],
+[60, "8.2", "Қорғаныс шарты (Guard Clause) бар келесі код үзіндісі нені шығарады?", "static void Process(string data)\n{\n    if (string.IsNullOrEmpty(data)) return;\n    Console.Write(\"Valid\");\n}\nProcess(null);\nProcess(\"Test\");", ["ValidValid", "Ештеңе шығармайды", "NullReferenceException", "Valid", "ArgumentNullException"], 3, "Первый вызов (null) сразу выходит, второй печатает Valid — один раз."],
+[61, "8.2", "null-мен біріктіру операторын (??) қолданғанда бұл код нені шығарады?", "string input = null;\nstring result = input ?? \"Default\";\nConsole.Write(result);", ["null", "input", "Ештеңе шығармайды", "NullReferenceException", "Default"], 4, "?? берёт правую часть, если левая null."],
+[62, "8.2", "null-мен біріктіру арқылы меншіктеу операторы (??=) бар C# код үзіндісі нені шығарады?", "string title = null;\ntitle ??= \"C# Guide\";\nConsole.Write(title);", ["C# Guide", "null", "title", "Ештеңе шығармайды", "Компиляция қатесі"], 0, "??= присваивает, только если переменная null."],
+[63, "8.2", "C# тілінде null-ды тексеріп өтудің шартты операторы (?.) не үшін қолданылады?", null, ["Айнымалыға мән меншіктеу үшін", "Объект null болмаса ғана оның мүшесіне қол жеткізу; null болса, NullReferenceException орнына null қайтарады", "Типтерді салыстыру үшін", "Ерекше жағдай лақтыру үшін", "Жолдарды біріктіру үшін"], 1, "?. обращается к члену только если объект не null, иначе даёт null без исключения."],
+[64, "8.2", "?. операторы бар келесі код үзіндісі нені шығарады?", "string text = null;\nConsole.Write(text?.Length ?? 0);", ["null", "NullReferenceException", "0", "4", "Ештеңе шығармайды"], 2, "text?.Length даёт null, ?? заменяет его на 0."],
+[65, "8.2", "Бағдарламалық жасақтаманың модульділігі деп нені түсінеді?", null, ["Барлық кодты бір үлкен файлда жазу", "Бағдарламаны тек консольде іске қосу", "Модульдік тесттердің санын азайту", "Жүйені нақты интерфейстері бар, салыстырмалы түрде тәуелсіз, ауыстырылатын бөліктерге (модульдерге) бөлу", "Тек бір бағдарламалау тілін қолдану"], 3, "Модульность — деление системы на независимые части с чёткими интерфейсами."],
+[66, "8.2", "Inversion of Control (IoC / Басқаруды инверсиялау) деген не?", null, ["Циклды кері бағытта орындау", "Массивті кері ретке келтіру", "Ерекше жағдайларды елемеу", "Мұрагерлікке тыйым салу", "Объектілерді жасау мен басқару ағыны объектінің өзінен сыртқы контейнерге немесе фреймворкке берілетін принцип"], 4, "IoC — создание зависимостей и управление передаются внешнему контейнеру/фреймворку."],
+[67, "8.2", "Тәуелділіктерді объектіге конструктор немесе қасиеттер арқылы беру жолымен IoC принципін қандай техника іске асырады?", null, ["Dependency Injection (тәуелділіктерді енгізу)", "Singleton", "Рефакторинг", "Сериализация", "Полиморфизм"], 0, "Dependency Injection — передача зависимостей через конструктор или свойства."],
+[68, "8.2", "Тәуелділікті конструктор арқылы енгізетін келесі C# код үзіндісі нені шығарады?", "interface ILogger\n{\n    void Log(string msg);\n}\nclass ConsoleLogger : ILogger\n{\n    public void Log(string msg) => Console.Write(msg);\n}\nclass Service\n{\n    private readonly ILogger _logger;\n    public Service(ILogger logger) => _logger = logger;\n    public void Run() => _logger.Log(\"Done\");\n}\nnew Service(new ConsoleLogger()).Run();", ["Log", "Done", "ConsoleLogger", "Ештеңе шығармайды", "NullReferenceException"], 1, "Run вызывает логгер, тот печатает \"Done\"."],
+[69, "8.2", "Модульдік тесттер жазу кезінде интерфейстерді пайдаланудың артықшылығы неде?", null, ["Тесттер автоматты түрде жазылады", "Код жылдамырақ компиляцияланады", "Нақты тәуелділіктерді жалған объектілермен (mock/stub) алмастырып, модульді оқшау тестілеуге болады", "Тесттер мүлдем қажет болмайды", "Интерфейстер жадты үнемдейді"], 2, "Через интерфейс зависимость подменяется mock/stub — модуль тестируется изолированно."],
+[70, "8.2", "C# 10+ нұсқасында ArgumentNullException.ThrowIfNull операторының көмегімен сілтемелік типке null мәнін меншіктеуге әрекет жасағанда C# коды нені шығарады?", "static void Process(string arg)\n{\n    ArgumentNullException.ThrowIfNull(arg);\n}\ntry\n{\n    Process(null);\n}\ncatch (ArgumentNullException)\n{\n    Console.Write(\"CatchNull\");\n}", ["null", "Өңделмеген ArgumentNullException", "Ештеңе шығармайды", "CatchNull", "NullReferenceException"], 3, "ThrowIfNull бросает ArgumentNullException, его ловит catch."],
+[71, "8.2", "Екі түрлі ерекше жағдайды өңдеген кезде бұл код нені шығарады?", "try\n{\n    int[] arr = { 1 };\n    Console.Write(arr[5]);\n}\ncatch (IndexOutOfRangeException)\n{\n    Console.Write(\"IndexErr\");\n}\ncatch (Exception)\n{\n    Console.Write(\"GenErr\");\n}", ["GenErr", "IndexErrGenErr", "1", "Ештеңе шығармайды", "IndexErr"], 4, "Срабатывает первый подходящий catch — IndexOutOfRangeException."],
+[72, "8.2", "catch (Exception) блогының мамандандырылған ерекше жағдай блоктарынан КЕЙІН орналасуы неліктен ұсынылады?", null, ["catch блоктары ретімен тексеріледі: жалпы Exception бірінші тұрса, бәрін ұстап алады да, нақты блоктарға кезек келмейді (компилятор CS0160 қатесін береді)", "Exception блогы жылдамырақ жұмыс істейді", "Бұл тек стильге қатысты, айырмашылық жоқ", "Exception блогы finally блогын алмастырады", "Нақты блоктар Exception-нан кейін ешқашан орындалмайды"], 0, "catch проверяются по порядку; общий Exception первым перехватит всё (ошибка CS0160)."],
+[73, "8.2", "finally блогы бар келесі C# код үзіндісі нені шығарады?", "static int GetVal()\n{\n    try\n    {\n        return 10;\n    }\n    finally\n    {\n        Console.Write(\"Fin\");\n    }\n}\nConsole.Write(GetVal());", ["10Fin", "Fin10", "10", "Fin", "Компиляция қатесі"], 1, "finally выполняется до выхода из метода (Fin), затем печатается результат 10."],
+[74, "8.2", "«Кодты қайта пайдалану» (Code Reuse) ұғымы деп нені түсінеді?", null, ["Кодты қолмен көшіріп қою", "Ескі кодты жою", "Бұрын жазылған кодты (класстарды, әдістерді, кітапханаларды) қайта жазбай, әртүрлі жерлерде пайдалану", "Кодты басқа тілге аудару", "Кодты бірнеше рет компиляциялау"], 2, "Code Reuse — использовать уже написанные классы, методы, библиотеки повторно."],
+[75, "8.2", "C# тілінде есімдер кеңістігі (namespace) не үшін қолданылады?", null, ["Айнымалыларды жадта сақтау үшін", "Ерекше жағдайларды өңдеу үшін", "Бағдарламаны жылдамдату үшін", "Кодты логикалық топтарға ұйымдастыру және атаулар қақтығысын болдырмау үшін", "Класстарды мұрагерліктен қорғау үшін"], 3, "namespace группирует код и предотвращает конфликты имён."],
+[76, "8.2", "Ресурсты автоматты түрде босату үшін using конструкциясын қолданатын C# кодының бұл үзіндісі нені шығарады?", "class Resource : IDisposable\n{\n    public void Dispose() => Console.Write(\"Disposed\");\n}\nusing (var r = new Resource())\n{\n    Console.Write(\"Work\");\n}", ["Work", "Disposed", "DisposedWork", "Ештеңе шығармайды", "WorkDisposed"], 4, "Сначала тело using (Work), при выходе — Dispose() (Disposed)."],
+[77,'8.3','Roslyn/MSBuild компиляторы C# бастапқы кодын қандай аралық тілге түрлендіреді?',null,['CIL / MSIL (Common Intermediate Language / Microsoft Intermediate Language)','Нақты процессордың машиналық коды (x86/x64)','Таза JavaScript','HTML5 белгілеу тілі','Java байт-коды'],0,'C# компилируется в промежуточный язык CIL (MSIL), а не сразу в машинный код.'],
+[78,'8.3','.NET жүйесіндегі CLR ортасының JIT-компиляторы (Just-In-Time) қандай қызмет атқарады?',null,['Түсініктемелердегі емлені тексереді','Аралық IL-кодты бағдарламаның орындалуы кезінде тікелей процессордың машиналық нұсқауларына компиляциялайды','Бастапқы кодты әзірлеушінің серверіне жібереді','Қолданбаның графикалық белгішелерін жасайды','Қатты дискіні пішімдейді'],1,'JIT переводит IL в машинный код прямо во время выполнения программы.'],
+[79,'8.3','.NET жүйесінде `Debug` және `Release` жинақтау конфигурацияларының негізгі айырмашылығы неде?',null,['Release орындалатын .exe файлдарын жасамайды','Debug тек серверлерде, ал Release смартфондарда жұмыс істейді','Debug жөндеу таңбаларын (.pdb) қамтиды және кодты оңтайландырмайды; Release оңтайландыруды қосып, жөндеу деректерін алып тастайды','Debug кодты C++ тілінде компиляциялайды','Олардың арасында айырмашылық жоқ'],2,'Debug — с .pdb и без оптимизаций; Release — с оптимизацией.'],
+[80,'8.3','C# жобасындағы `.csproj` кеңейтімі бар файл дегеніміз не?',null,['Жұмыс үстелінің суреті','SQL дерекқорының файлы','Орындалатын машиналық файл','Жинақтау баптауларын, мақсатты платформаны (TargetFramework), кітапханалар мен пакеттерге сілтемелерді қамтитын жобаның XML файлы','Пайдаланушылардың құпиясөздері бар файл'],3,'.csproj — XML-файл проекта: TargetFramework, ссылки на пакеты и проекты.'],
+[81,'8.3','.NET экожүйесіндегі NuGet пакет менеджері дегеніміз не?',null,['Бейнеадаптер драйвері','Бейне монтаждау бағдарламасы','Visual Studio антивирустық сканері','C тіліндегі код компиляторы','Жобаның сыртқы кітапханалары мен тәуелділіктерін іздеу, орнату, жаңарту және басқару құралы'],4,'NuGet — менеджер пакетов (внешних библиотек) для .NET.'],
+[82,'8.3','C# жобасын жинақтау үшін `dotnet` командалық жол интерфейсінің қандай командасы қолданылады?',null,['dotnet build','dotnet run','dotnet new','dotnet clean','dotnet restore'],0,'build — сборка; run — запуск; new — создание проекта; clean — очистка; restore — пакеты.'],
+[83,'8.3','Жоба файлында көрсетілген барлық тәуелділіктер мен NuGet пакеттерін қандай `dotnet` командасы қалпына келтіреді?',null,['dotnet compile','dotnet restore','dotnet execute','dotnet pack','dotnet publish'],1,'restore — восстанавливает NuGet-зависимости из .csproj.'],
+[84,'8.3','Дайын қолданбаны барлық тәуелділіктерімен бірге орналастыру үшін жариялауға қандай `dotnet` командасы қолданылады?',null,['dotnet test','dotnet build','dotnet publish','dotnet add','dotnet remove'],2,'publish — готовит приложение со всеми зависимостями к развёртыванию.'],
+[85,'8.3','.NET платформасында жинақ (Assembly) дегеніміз не?',null,['Нұсқаулығы бар мәтіндік файл','Visual Studio орнату процесі','Жабдық сызбаларының жиынтығы','IL-кодты, метадеректерді және жинақ манифесін қамтитын `.dll` немесе `.exe` файлы түріндегі компиляцияланған модуль','.cs бастапқы файлдарының массиві'],3,'Сборка — .dll/.exe с IL-кодом, метаданными и манифестом.'],
+[86,'8.3','Консольде орындалғанда `dotnet --version` командасы не шығарады?',null,['Ағымдағы пайдаланушының аты','Windows нұсқасы','Экран ажыратымдылығы','Қатты дискінің көлемі','Орнатылған .NET SDK нұсқасы'],4,'Выводит версию установленного .NET SDK.'],
+[87,'8.3','`.pdb` (Program Database) жөндеу таңбаларының файлы не үшін арналған?',null,['Қадамдық жөндеу жүргізу үшін компиляцияланған IL-кодты `.cs` бастапқы код жолдарымен байланыстырады','Графикалық интерфейс стильдерін сақтайды','Дерекқор құпиясөздерін қамтиды','.dll файлдарын алмастырады','Жобаны көшіруден қорғайды'],0,'.pdb связывает IL-код со строками исходника для пошаговой отладки.'],
+[88,'8.3','A және B жобалары арасында циклдік тәуелділік (Circular Dependency) болғанда не болады?',null,['Жинақтау 2 есе жылдамдайды','Жинақтау қатесі: MSBuild компиляция ретін анықтай алмайды, себебі A B-ға, ал B A-ға тәуелді','Үшінші жоба автоматты жасалады','Жобалар .zip файлына біріктіріледі','Бағдарлама ескертусіз компиляцияланады'],1,'Циклическая зависимость — ошибка сборки: порядок компиляции не определить.'],
+[89,'8.3','Классикалық .NET Framework жүйесінде GAC (Global Assembly Cache) дегеніміз не?',null,['Windows уақытша файлдарының бумасы','Браузер кэші','Компьютердегі бірнеше қолданбаға ортақ, қатаң атауы бар жинақтардың глобалдық қоймасы','Пайдаланушылар дерекқоры','Компилятор баптауларының тізілімі'],2,'GAC — общее хранилище сборок со строгим именем (strong name).'],
+[90,'8.3','MSBuild утилитасы қандай қызмет атқарады?',null,['Веб-қолданбалар сервері','C# мәтіндік редакторы','Антивирустық қорғау құралы','`.csproj` файлын өңдеп, компиляторларды шақыратын Microsoft жобаларын автоматты жинақтау платформасы','Пернетақта драйвері'],3,'MSBuild — движок сборки: читает .csproj и вызывает компилятор.'],
+[91,'8.3','`.csproj` XML файлындағы қандай тег қолданылатын мақсатты платформаның нұсқасын көрсетеді (мысалы, net6.0 немесе net8.0)?',null,['<ImplicitUsings>','<Version>','<OutputType>','<Nullable>','<TargetFramework>'],4,'<TargetFramework>net8.0</TargetFramework>'],
+[92,'8.3','Қазіргі C# тілінде `<Nullable>enable</Nullable>` опциясы қосылғанда CS8600 ескертуі нені білдіреді?',null,['null мәніне жол бермейтін айнымалыға null мәнін меншіктеу мүмкіндігі (Nullable Reference Type)','Санды нөлге бөлу','Жөндеу дерекқоры файлының болмауы','Стектің толып кетуі','Жоба файлының қате атауы'],0,'CS8600 — null (или возможный null) присваивается non-nullable ссылочному типу.'],
+[93,'8.3','`using Namespace;` немесе жинаққа сілтеме қоспай, сыртқы кітапхананың класын пайдалану әрекетінде қандай компиляция қатесі туындайды?',null,['CS0103: Атау ағымдағы контексте жоқ','CS0246: Тип немесе атаулар кеңістігінің атауы табылмады','CS0161: Кодтың барлық орындалу жолдары мән қайтармайды','CS0029: Типті жасырын түрлендіру мүмкін емес','CS1002: Нүктелі үтір (;) күтілді'],1,'CS0246 — не найден тип/namespace. CS0103 — это про переменную или метод.'],
+[94,'8.3','`dotnet clean` командасын шақырғанда не болады?',null,['C: дискісін пішімдеу','.cs бастапқы код файлдарын жою','`bin` және `obj` бумаларындағы барлық аралық және қорытынды жинақтау файлдарын жою','Windows оқиғалар журналын тазарту','Орнатылған NuGet пакеттерін жою'],2,'clean удаляет результаты сборки в bin/ и obj/. Исходники не трогает.'],
+[95,'8.3','Жоба сәтті жинақталғаннан кейін `bin/Debug/net8.0` бумасында не болады?',null,['Уақытша жинақтау журналдары','Қолданбаның бастапқы коды','Visual Studio орнатушысы','Қорытынды компиляцияланған орындалатын файлдар (`.exe`/`.dll`), баптау файлдары және жөндеу таңбалары (`.pdb`)','Операциялық жүйенің сақтық көшірмесі'],3,'bin — итоговые .exe/.dll, конфиги и .pdb.'],
+[96,'8.3','C# жобасының бумасында `obj` ішкі бумасы не үшін жасалады?',null,['Жоба мұрағаттары үшін','Пайдаланушы суреттерін сақтау үшін','SQL дерекқорын сақтау үшін','Windows жаңартуларын жүктеу үшін','Жинақтау барысында MSBuild жасайтын уақытша аралық компиляция файлдарын сақтау үшін'],4,'obj — промежуточные файлы MSBuild. bin — итоговые.'],
+[97,'8.3','C# / .NET жүйесінде динамикалық қосылатын кітапхана файлының кеңейтімі қандай?',null,['.dll','.exe','.cs','.zip','.txt'],0,'DLL = Dynamic Link Library.'],
+[98,'8.3','Жобаны жинақтағанда `.exe` кеңейтімі бар файлдың `.dll` кітапханасынан айырмашылығы неде?',null,['`.dll` жылдамырақ жұмыс істейді','`.exe` кіру нүктесін (`Main`) қамтиды және дербес процесс ретінде іске қосыла алады; `.dll` кластар кітапханасы болып табылады','`.exe` тек консольдік бағдарламалар үшін жасалады','`.dll` әдістерді қамти алмайды','Олардың арасында ешқандай айырмашылық жоқ'],1,'.exe имеет точку входа Main и запускается сам; .dll — библиотека классов.'],
+[99,'8.3','Қандай CLI командасы ағымдағы C# жобасына NuGet пакетін (мысалы, Newtonsoft.Json) қосуға мүмкіндік береді?',null,['dotnet get Newtonsoft.Json','dotnet install Newtonsoft.Json','dotnet add package Newtonsoft.Json','dotnet nuget new Newtonsoft.Json','dotnet build package Newtonsoft.Json'],2,'Добавление: dotnet add package <Имя>.'],
+[100,'8.3','`dotnet` CLI арқылы C# жобасынан орнатылған NuGet пакетін қалай жоюға болады?',null,['dotnet clean package PackageName','dotnet delete package PackageName','dotnet uninstall PackageName','dotnet remove package PackageName','dotnet drop PackageName'],3,'Удаление: dotnet remove package <Имя> (пара к add package).'],
+[101,'8.3','.NET шешімінің түбіріндегі `global.json` файлы дегеніміз не?',null,['Жоба файлдарының мұрағаты','C# глобалдық айнымалыларын сақтау файлы','Серверге қосылу конфигурациясы','Visual Studio барлық пайдаланушыларының тізімі','Жинақтау кезінде CLI командаларын орындау үшін қолданылатын нақты .NET SDK нұсқасын белгілейтін файл'],4,'global.json фиксирует версию .NET SDK для CLI.'],
+[102,'8.3','.NET жинағында `[AssemblyVersion("1.0.0.0")]` атрибуты қандай қызмет атқарады?',null,['CLR жүктеушісінің сәйкестендіруі және үйлесімділікті басқару үшін жинақ нұсқасының нөмірін белгілейді','Файлдың жасалған күнін көрсетеді','Процессордың разрядтылығын (32/64 бит) анықтайды','Жоба авторының атын белгілейді','Компиляция жылдамдығын белгілейді'],0,'AssemblyVersion — номер версии сборки, по нему CLR связывает и проверяет совместимость.'],
+[103,'8.3','.NET қолданбасын жариялау кезінде «Компоненттерді байланыстыру» (Linking / IL Trimming) кезеңінде не болады?',null,['Пайдаланушы түсініктемелерін жою','Дербес орындалатын файлдың қорытынды көлемін азайту үшін пайдаланылмайтын код пен кітапханаларды талдау және жою','Бағдарлама мәтінін пішімдеу','Кодты бұлттық қоймаға жіберу','Дискіні вирустарға тексеру'],1,'Trimming вырезает неиспользуемый код, чтобы уменьшить размер.'],
+[104,'8.3','.NET жүйесінде Self-Contained Deployment (дербес орналастыру) дегеніміз не?',null,['Жобаны флеш-жинақтауышқа орналастыру','Қолданбаны операциялық жүйесіз іске қосу','Мақсатты компьютерге .NET жүйесін алдын ала орнатуды талап етпейтін, .NET Runtime орындау ортасымен бірге қолданбаны жариялау','Кодты HTML веб-бетіне компиляциялау','Бағдарламаны браузер ішінде іске қосу'],2,'Self-contained — приложение публикуется вместе с .NET Runtime.'],
+[105,'8.3','Ағымдағы орындалатын жинақтың атауын алу үшін қолданылатын берілген C# коды не шығарады?',`var name = System.Reflection.Assembly
+    .GetExecutingAssembly().GetName().Name;
+Console.Write(name != null);`,['Assembly','False','NullReferenceException','True','0'],3,'У сборки всегда есть имя → name != null → True.'],
+[106,'8.3','Жинақты жөндеу кезінде Visual Studio бағдарламасындағы «Modules» (Модульдер) терезесі не үшін қолданылады?',null,['Ашық қойындылар тізімін көрсетеді','Қолжетімді Windows жаңартуларының тізімін көрсетеді','Код стильдерін өңдеуге мүмкіндік береді','Дыбыстық әсерлерді басқарады','Процеске жүктелген барлық жинақтардың (.dll) тізімін, жолдарын, жөндеу таңбаларының (.pdb) жүктелу күйін және жадтағы мекенжайларын көрсетеді'],4,'Modules показывает загруженные сборки, пути, статус .pdb и адреса.'],
+[107,'8.3','Бір атаулар кеңістігінде екі түрлі кластың толық атауы бірдей болса, жинақтау кезінде қандай қате туындайды?',null,['CS0101: Атаулар кеңістігінде бұл кластың анықтамасы бұрыннан бар','CS0001: Жад қатесі','CS0999: Компилятордың белгісіз қатесі','CS0005: Файл табылмады','Жинақтау сәтті өтеді'],0,'CS0101 — namespace уже содержит определение этого типа.'],
+[108,'8.3','Тест жобасы орналасқан каталогтың консолінде `dotnet test` командасы шақырылғанда не шығарады?',null,['Жобадан барлық тесттерді жояды','Компиляцияны және барлық автоматты модульдік тесттерді орындауды іске қосып, нәтижелер туралы есеп шығарады','Жаңа тест класын жасайды','Қолданбаны жөндеу режимінде іске қосады','Құжаттамасы бар браузерді ашады'],1,'dotnet test собирает проект, запускает unit-тесты и выводит отчёт.'],
+[109,'8.3','C# / .NET жобасының түбіріндегі `.gitignore` файлы не үшін арналған?',null,['C# компиляторының баптауларын сақтайды','Компьютерден вирустарды жояды','Git жүйесіне қандай бумалар мен файлдар (мысалы, bin/, obj/, .user, .pdb) репозиторийге түспеуі тиіс екенін көрсетеді','Әкімшінің құпиясөздерін қамтиды','Редактордағы қаріпті баптайды'],2,'.gitignore — список того, что Git не должен добавлять в репозиторий.'],
+[110,'8.3','`.csproj` файлындағы `<OutputType>Exe</OutputType>` параметрінің мақсаты қандай?',null,['Іске қосылғаннан кейін қорытынды файлды жояды','.dll кластар кітапханасын жасайды','Консольге хабарламалар шығаруды өшіреді','Компиляторға жобаны консольдік орындалатын қолданба (.exe) ретінде жинақтауды көрсетеді','Веб-сайтты көрсетеді'],3,'OutputType=Exe → собирается исполняемое приложение.'],
+[111,'8.3','CIL/MSIL жинағының мазмұнын (аралық код пен метадеректерді) қандай утилита арқылы көруге болады?',null,['Windows Media Player','Блокнот (Notepad)','MS Paint','Paint.NET','ILDASM / ilspy / dnSpy'],4,'ILDASM, ILSpy, dnSpy — дизассемблеры IL.'],
+[112,'8.3','Орындау кезінде .NET платформасының нұсқасын тексеретін келесі C# код үзіндісі не шығарады?',`var ver = Environment.Version;
+Console.Write(ver.Major >= 4);`,['True','False','0','Environment','NullReferenceException'],0,'Major у современных .NET — 4 и выше (в .NET 8 это 8) → True.'],
+[113,'8.3','Тәуелді (Framework-Dependent) қолданбаны іске қосу әрекетінде .NET Runtime қажетті нұсқасы болмаса, не болады?',null,['Қолданба автоматты түрде C++ тіліне компиляцияланады','Операциялық жүйе қажетті .NET Runtime нұсқасын жүктеп, орнатуды ұсынатын жүйелік қате шығарады','Бағдарлама мәтіндік режимде іске қосылады','Компьютер қайта жүктеледі','Бағдарлама файлы автоматты жойылады'],1,'Появится ошибка с предложением скачать и установить нужный Runtime.'],
+[114,'8.4','C# тілінде деректер типтерін түрлендіру (конвертациялау) процедурасы дегеніміз не?',null,['Бір типтегі айнымалының мәнін басқа типке келтіру процесі (жасырын немесе айқын)','Қатты дискіні пішімдеу','Әзірлеу орталарында тақырыпты ауыстыру','C# кодын Python тіліне аудару','Айнымалыларды жадтан жою'],0,'Конвертация — приведение значения к другому типу (неявно или явно).'],
+[115,'8.4','C# тіліндегі типтерді жасырын келтірудің берілген үзіндісі не шығарады?',`int num = 100;
+double val = num;
+Console.Write(val);`,['100.0','100','InvalidCastException','0','Компиляция қатесі'],1,'Ловушка: double 100 печатается как «100», без «.0».'],
+[116,'8.4','C# тіліндегі типтерді айқын келтірудің (Explicit Casting) бұл коды не шығарады?',`double pi = 3.99;
+int approx = (int)pi;
+Console.Write(approx);`,['3.99','4','3','0','InvalidCastException'],2,'(int) отбрасывает дробную часть, а не округляет: 3.99 → 3.'],
+[117,'8.4','Объектілік типті қате айқын келтіру кезінде орындау барысында қандай ерекшелік туындайды?',`object obj = "Hello";
+int n = (int)obj;`,['IndexOutOfRangeException','NullReferenceException','DivideByZeroException','InvalidCastException','FormatException'],3,'Внутри object лежит string, распаковать его в int нельзя → InvalidCastException.'],
+[118,'8.4','C# тілінде типтерді келтіру мүмкін болмағанда қауіпсіз `as` операторы қалай әрекет етеді?',null,['Әдісті қайта іске қосады','`InvalidCastException` ерекшелігін тудырады','`0` мәнін қайтарады','Бағдарламаның жұмысын тоқтатады','Ерекшелік тудырмай, `null` мәнін қайтарады'],4,'as при неудаче возвращает null, исключения нет.'],
+[119,'8.4','`as` операторы арқылы қауіпсіз келтіруді қолданатын берілген код не шығарады?',`object data = "Sample";
+string text = data as string;
+Console.Write(text != null);`,['True','False','Sample','NullReferenceException','0'],0,'data — действительно string, приведение удалось → True.'],
+[120,'8.4','C# тілінде `int.TryParse(string s, out int result)` әдісі не үшін қолданылады?',null,['Жолдан таңбаларды жою үшін','Жолды бүтін санға қауіпсіз түрлендіру үшін: bool (сәтті/сәтсіз) мәнін қайтарады және қате кезінде ерекшелік тудырмайды','Санды екілік санау жүйесіне ауыстыру үшін','Мәтінді сығу үшін','Құпиясөздерді шифрлау үшін'],1,'TryParse возвращает bool и не бросает исключений.'],
+[121,'8.4','`int.TryParse` арқылы жарамсыз жолды талдау әрекетінде берілген код не шығарады?',`bool success = int.TryParse("abc", out int val);
+Console.Write($"{success}:{val}");`,['FormatException','True:0','False:0','False:abc','Null'],2,'При неудаче: false, а out-переменная получает 0.'],
+[122,'8.4','C# тілінде деректерді сериализациялау (Serialization) процесі дегеніміз не?',null,['Дерекқордағы кестені пішімдеу','Объектілерді жедел жадтан жою','Кодты .exe файлына компиляциялау','Сақтау немесе тасымалдау үшін C# объектісін немесе деректер құрылымын байттар тізбегіне/жолға (JSON, XML) түрлендіру','Қатты дискіні шифрлау'],3,'Сериализация: объект → байты / JSON / XML.'],
+[123,'8.4','Десериализация (Deserialization) дегеніміз не?',null,['Суреттерді сығу','Дискіден файлды жою','Кодты ассемблер нұсқауларына түрлендіру','Бағдарламаны жөндеу режимінде іске қосу','Сақталған пішімнен (JSON, XML, байттар ағыны) C# объектісінің данасын қайта жасау'],4,'Десериализация: JSON / XML / байты → объект.'],
+[124,'8.4','.NET жүйесінде JSON-мен жұмыс істеуге арналған жоғары өнімді кластарды (мысалы, JsonSerializer) қандай атаулар кеңістігі ұсынады?',null,['System.Text.Json','System.IO','System.Xml','System.Data','System.Net'],0,'JsonSerializer находится в System.Text.Json.'],
+[125,'8.4','Объектіні JSON жолына сериализациялағанда C# код үзіндісі не шығарады?',`public class Person { public string Name { get; set; } }
+
+Person p = new Person { Name = "Tom" };
+string json = System.Text.Json.JsonSerializer.Serialize(p);
+Console.Write(json.Contains("Tom"));`,['False','True','Tom','JsonException','0'],1,'Получится {"Name":"Tom"} — строка содержит Tom → True.'],
+[126,'8.4','JSON жолынан C# объектісіне десериализациялау не шығарады?',`public class User { public int Id { get; set; } }
+
+string json = "{\\"Id\\":42}";
+User u = System.Text.Json.JsonSerializer.Deserialize<User>(json);
+Console.Write(u.Id);`,['Id','0','42','JsonException','null'],2,'Id = 42. В билете кавычки внутри строки не экранированы, но имеется в виду именно это.'],
+[127,'8.4','Деректерді көшіру процедураларында DTO (Data Transfer Objects — деректерді тасымалдау объектілері) не үшін қолданылады?',null,['Дерекқор драйверлері','Физикалық жабдықпен жұмыс істеуге арналған кластар','Автоматты рефакторинг құралдары','Қабаттар немесе сыртқы жүйелер арасында деректерді қауіпсіз тасымалдауға арналған бизнес-логикасы жоқ қарапайым контейнер-кластар','Графикалық интерфейс контроллерлері'],3,'DTO — простые классы-контейнеры без бизнес-логики.'],
+[128,'8.4','Жүйелер арасында көшіру кезінде деректерді сәйкестендіру (Data Mapping) ұғымы нені білдіреді?',null,['Маршрутизаторды баптау','Операциялық жүйенің сақтық көшірмесін жасау','Экраннан бейне жазу','C# кодын C++ тіліне түрлендіру','Бастапқы жүйенің деректер өрістері мен құрылымдарын мақсатты жүйенің сәйкес өрістері мен типтерімен сәйкестендіру процесі'],4,'Mapping — сопоставление полей источника с полями приёмника.'],
+[129,'8.4','`System.IO.File` класының қандай әдісі файлдағы барлық мәтінді бір операциямен жолға оқуға мүмкіндік береді?',null,['File.ReadAllText(path)','File.OpenRead(path)','File.Create(path)','File.WriteAllText(path)','File.Copy(path)'],0,'ReadAllText — прочитать весь файл в одну строку.'],
+[130,'8.4','Файлды жасау немесе қайта жазу арқылы жолдар массивін мәтіндік файлға жазу үшін `System.IO.File` класының қандай әдісі қолданылады?',null,['File.ReadAllLines(path)','File.WriteAllLines(path, lines)','File.AppendText(path)','File.Delete(path)','File.Move(path)'],1,'WriteAllLines — записать массив строк (файл создаётся или перезаписывается).'],
+[131,'8.4','CSV жолын жеке өрістерге бөлетін C# код үзіндісі не шығарады?',`string csvRow = "Alex,25,Developer";
+string[] fields = csvRow.Split(',');
+Console.Write(fields[1]);`,['Developer','Alex','25','3','IndexOutOfRangeException'],2,'Индексы с нуля: [0]=Alex, [1]=25, [2]=Developer.'],
+[132,'8.4','`string.Join` әдісімен жолдар массивінің элементтерін бір CSV жолына біріктіру не шығарады?',`string[] data = { "Ivan", "30", "Manager" };
+string row = string.Join(";", data);
+Console.Write(row);`,['data','Ivan,30,Manager','Ivan 30 Manager','Ivan;30;Manager','3'],3,'Разделитель — точка с запятой: Ivan;30;Manager.'],
+[133,'8.4','Дерекқорға көшіру үшін күнді белгілі бір жолдық пішімге келтіргенде берілген код не шығарады?',`DateTime dt = new DateTime(2026, 11, 1);
+Console.Write(dt.ToString("yyyy-MM-dd"));`,['FormatException','01.11.2026','2026/11/01','11-01-2026','2026-11-01'],4,'Формат год-месяц-день через дефис: 2026-11-01.'],
+[134,'8.4','`DateTime.Parse` арқылы пішімі қате күн жолын талдау әрекетінде қандай ерекшелік туындайды?',`string invalidDate = "not-a-date";
+DateTime dt = DateTime.Parse(invalidDate);`,['FormatException','NullReferenceException','DivideByZeroException','IndexOutOfRangeException','OverflowException'],0,'Parse строки неверного формата → FormatException.'],
+[135,'8.4','Нақты пішімді көрсете отырып, күнді жолдан қауіпсіз түрлендіру үшін қандай әдісті қолдану керек?',null,['DateTime.Convert(...)','DateTime.TryParseExact(...)','DateTime.ToShortDateString()','DateTime.AddDays()','DateTime.Compare()'],1,'TryParseExact — с заданным форматом и без исключения.'],
+[136,'8.4','Көшіру кезінде деректер тұтастығын бақылау (Data Integrity) дегеніміз не?',null,['Дерекқордан бастапқы кестелерді жою','Бастапқы файлдарды мұрағаттағышпен сығу','Көшірілген деректердің бастапқы дереккөзге дәл сәйкес келетінін, бұрмаланбағанын, жоғалмағанын және қайталанбағанын тексеру','Операциялық жүйе құпиясөздерін шифрлау','Интернеттің жұмыс жылдамдығын өлшеу'],2,'Целостность: скопированное совпадает с источником, без потерь и дублей.'],
+[137,'8.4','Көшіру процедурасындағы деректерді валидациялау (Data Validation) кезеңі дегеніміз не?',null,['Пайдаланушы интерфейсін жасау','C# жобасын компиляциялау','NuGet пакеттерін орнату','Кіріс деректерінің бизнес-ережелерге, типтерге, диапазон шектеулеріне және сілтемелік тұтастық талаптарына сәйкестігін тексеру','Жөндеу таңбаларын жою'],3,'Валидация — проверка правил, типов, диапазонов и ссылочной целостности.'],
+[138,'8.4','`Enum.TryParse` арқылы санамалауды (enum) жолдан мәнге түрлендіргенде берілген код не шығарады?',`enum Status { Active, Inactive }
+
+Enum.TryParse("Active", out Status st);
+Console.Write(st == Status.Active);`,['Null','False','Active','0','True'],4,'"Active" успешно распознан → st == Status.Active → True.'],
+[139,'8.4','Үлкен мәндер кезінде жылжымалы нүктелі `double` санын `int` типіне түрлендіргенде қандай мәселе туындауы мүмкін?',null,['Толып кету (OverflowException) немесе санның бөлшек бөлігінің жоғалуы','Бағдарламаның шексіз циклге түсуі','Бағдарлама файлын жою','Желімен байланыс қатесі','Процессордың өшірілуі'],0,'Переполнение или потеря дробной части.'],
+[140,'8.4','Үлкен көлемдегі деректерді көшіру процедураларында пакеттік өңдеу (Batch Processing) не үшін қолданылады?',null,['Графикалық адаптердің жұмысын жылдамдату','Жедел жадтың толып кетуін болдырмау және жүйеге түсетін жүктемені азайту үшін деректерді бөліктермен (пакеттермен) өңдеу','Дерекқорды пайдаланудан толық бас тарту','Бастапқы кодты шифрлау','Деректер типтерін мәтіндік типтермен алмастыру'],1,'Batch — обработка порциями, чтобы не переполнить память.'],
+[141,'8.4','`Convert.ToInt32(null)` қолданатын келесі C# код үзіндісі не шығарады?',`int val = Convert.ToInt32(null);
+Console.Write(val);`,['FormatException','NullReferenceException','0','null','-1'],2,'Convert.ToInt32(null) возвращает 0, без исключения.'],
+[142,'8.4','`Convert.ToInt32(null)` және `int.Parse(null)` әдістерінің әрекетіндегі негізгі айырмашылық неде?',null,['Екі әдіс те null мәнін қайтарады','`int.Parse` `0` мәнін қайтарады','Екі әдіс те ерекшелік тудырады','`Convert.ToInt32(null)` `0` мәнін қайтарады, ал `int.Parse(null)` `ArgumentNullException` ерекшелігін тудырады','Олардың арасында айырмашылық жоқ'],3,'Convert → 0; int.Parse(null) → ArgumentNullException.'],
+[143,'8.4','`Convert.ToBoolean(1)` арқылы объектіні логикалық мәнге түрлендіретін C# код үзіндісі не шығарады?',`bool flag = Convert.ToBoolean(1);
+Console.Write(flag);`,['null','False','1','FormatException','True'],4,'Любое ненулевое число → True, 0 → False.'],
+[144,'8.4','Көшіру скрипттерінде түрлендіру журналдары (Migration Audit Logs) не үшін жасалады?',null,['Көшірілген жазбалар тарихын, анықталған қателерді, өткізіп жіберілген жолдарды және әр пакеттің орындалу күйін тіркеу','Уақытша бумаларды жою','Visual Studio компиляциясын жылдамдату','C: дискісін шифрлау','Модульдік тесттерді автоматты жазу'],0,'Журнал: что перенесено, какие ошибки, что пропущено, статус пакетов.'],
+[145,'8.4','`is` операторы (Pattern Matching) арқылы тексеріп, айқын келтіру әрекетінде берілген код не шығарады?',`object input = 100;
+if (input is int number)
+{
+    Console.Write(number + 50);
+}`,['100','150','50','InvalidCastException','false'],1,'input — int, условие верно: 100 + 50 = 150.'],
+[146,'8.4','Түрлендіруді орындамас бұрын типтерді тексеретін келесі код не шығарады?',`object val = "123";
+Console.Write(val is string);`,['123','False','True','String','0'],2,'"123" в кавычках — это string → True.'],
+[147,'8.4','Өзара сәйкес келмейтін жүйелер арасында деректерді көшіру кезінде аралық схемалар (Staging Area / аралық сақтау дерекқоры) не үшін қолданылады?',null,['Бастапқы файлдарды C# кодымен алмастыру','Желілік адаптерлердің жұмыс жылдамдығын арттыру','Жөндеу жинақтарын жою','Деректерді мақсатты жүйеге түпкілікті жүктемес бұрын уақытша сақтау, тазарту, түрлендіру және сапасын тексеру','Құжаттарды мұрағаттау'],3,'Staging — промежуточная зона: хранение, очистка, проверка перед загрузкой.'],
+[148,'8.4','Жаппай көшіру барысында бүлінген жазба анықталса, қателерді өңдеудің қандай стратегиясы ұсынылады?',null,['Операциялық жүйені қайта жүктеу','Қатты дискіні дереу пішімдеу','Қатені елемеу және журналға жазбау','Жүйенің жұмысын тоқтатып, жобаны жою','Қатені журналға тіркеу, бүлінген жазбаны өткізіп жіберу/қателер кезегінде (Error Queue) сақтау және пакетті өңдеуді жалғастыру'],4,'Залогировать, отложить в Error Queue и продолжить обработку.'],
+[149,'8.4','`System.Text.Encoding` көмегімен байттар массивін жолға және кері түрлендіргенде келесі C# код үзіндісі не шығарады?',`string original = "Data";
+byte[] bytes = System.Text.Encoding.UTF8.GetBytes(original);
+string restored = System.Text.Encoding.UTF8.GetString(bytes);
+Console.Write(restored == original);`,['True','False','Data','Bytes','0'],0,'UTF-8 туда и обратно даёт ту же строку → True.'],
+[150,'8.4','Деректерді көшіру процедурасын орындау кезінде транзакцияның атомарлығының (Atomicity) қандай негізгі ережесі сақталуы тиіс?',null,['Барлық деректер мәтіндік файлдарда сақталуы тиіс','Деректердің параллель пакеті толық орындалуы (Commit) немесе ақау кезінде бастапқы күйіне толық қайтарылуы (Rollback) тиіс','Көшіру жадты пайдаланбай орындалуы тиіс','Ақау кезінде деректер ішінара жойылуы тиіс','C# тілінде транзакцияларды пайдалануға тыйым салынады'],1,'Атомарность: всё или ничего — Commit целиком или Rollback целиком.']
+];
+
+const LET = 'ABCDE';
+const byNum = {}; Q.forEach(q => byNum[q[0]] = q);
+function load(k){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+function save(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+let S = load('tr84-stats') || {};
+let P = Object.assign({mode:'quiz', sec:'all', shQ:true, shO:true}, load('tr84-pref') || {});
+let queue = [], pos = 0, answered = false, perm = [0,1,2,3,4], sess = {ok:0, bad:0}, onlyWrong = false, search = '', resetArmed = false;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const inSec = q => P.sec === 'all' || q[1] === P.sec;
+const status = n => S[n] ? (S[n].last ? 'ok' : 'no') : '';
+const secName = s => s === '8.1' ? '1–38' : s === '8.2' ? '39–76' : 'ОН ' + s;
+const approx = n => n <= 76 ? ' <span class="badge ap">варианты примерные</span>' : '';
+const $ = id => document.getElementById(id);
+
+function buildQueue(){
+  let items = Q.filter(inSec);
+  if (onlyWrong) items = items.filter(q => status(q[0]) === 'no');
+  queue = (P.shQ ? shuffle(items) : items).map(q => q[0]);
+  pos = 0; answered = false; sess = {ok:0, bad:0};
+}
+
+function renderBar(){
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === P.mode));
+  document.querySelectorAll('[data-sec]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sec === P.sec));
+  $('quizbar').hidden = P.mode !== 'quiz';
+  $('shq').checked = P.shQ; $('sho').checked = P.shO;
+  const wrongN = Q.filter(inSec).filter(q => status(q[0]) === 'no').length;
+  const wb = $('wrongBtn');
+  wb.textContent = onlyWrong ? 'Показать все' : 'Только ошибки (' + wrongN + ')';
+  wb.disabled = !onlyWrong && wrongN === 0;
+  wb.classList.toggle('primary', onlyWrong);
+}
+
+function renderMap(){
+  let ok = 0, no = 0, none = 0;
+  const cur = P.mode === 'quiz' ? queue[pos] : null;
+  const groups = [['8.1','1–38 · ООП в C#'],['8.2','39–76 · Проектирование модулей'],['8.3','ОН 8.3 · Сборка модулей'],['8.4','ОН 8.4 · Конвертация данных']].filter(g => P.sec === 'all' || P.sec === g[0]);
+  $('cells').innerHTML = groups.map(([sec, label]) => {
+    const cells = Q.filter(q => q[1] === sec).map(q => {
+      const st = status(q[0]);
+      if (st === 'ok') ok++; else if (st === 'no') no++; else none++;
+      return '<button class="cell ' + st + (q[0] === cur ? ' cur' : '') + '" data-jump="' + q[0] + '" aria-label="Вопрос ' + q[0] + '">' + q[0] + '</button>';
+    }).join('');
+    return '<div class="grp"><div class="grp-label">' + label + '</div><div class="cells">' + cells + '</div></div>';
+  }).join('');
+  $('cOk').textContent = ok; $('cNo').textContent = no; $('cNone').textContent = none;
+  $('sumTxt').textContent = '✓ ' + ok + ' · ✗ ' + no + ' · осталось ' + none;
+}
+
+function renderQuiz(){
+  const main = $('main');
+  if (!queue.length){
+    main.innerHTML = '<div class="card"><p class="empty">' + (onlyWrong ? 'Ошибок нет — все вопросы этого раздела отвечены верно.' : 'Нет вопросов.') + '</p></div>';
+    return;
+  }
+  if (pos >= queue.length) return renderDone();
+  const q = byNum[queue[pos]];
+  perm = P.shO ? shuffle([0,1,2,3,4]) : [0,1,2,3,4];
+  answered = false;
+  main.innerHTML =
+    '<div class="card">' +
+      '<div class="meta"><span>Вопрос ' + (pos+1) + ' / ' + queue.length + ' · №' + q[0] + ' · ' + secName(q[1]) + approx(q[0]) + '</span>' +
+      '<span class="tally">верно <b>' + sess.ok + '</b> · ошибок <i>' + sess.bad + '</i></span></div>' +
+      '<div class="prog"><span style="width:' + (pos / queue.length * 100) + '%"></span></div>' +
+      '<p class="qtext">' + fmt(q[2]) + '</p>' +
+      (q[3] ? '<pre>' + esc(q[3]) + '</pre>' : '') +
+      '<div class="opts">' + perm.map((o, i) =>
+        '<button class="opt" data-i="' + i + '"><span class="l">' + LET[i] + '</span><span class="t">' + fmt(q[4][o]) + '</span></button>').join('') + '</div>' +
+      '<div id="fb"></div>' +
+      '<div class="nav"><button class="btn primary" id="nextBtn">Пропустить</button>' +
+      '<span class="hint">Клавиши: <kbd>A</kbd>–<kbd>E</kbd> или <kbd>1</kbd>–<kbd>5</kbd> — ответ, <kbd>Enter</kbd> — дальше</span></div>' +
+    '</div>';
+}
+
+function answer(i){
+  if (answered || P.mode !== 'quiz' || pos >= queue.length) return;
+  answered = true;
+  const q = byNum[queue[pos]];
+  const correct = perm[i] === q[5];
+  const rec = S[q[0]] || {r:0, w:0};
+  if (correct) { rec.r++; sess.ok++; } else { rec.w++; sess.bad++; }
+  rec.last = correct; S[q[0]] = rec; save('tr84-stats', S);
+  document.querySelectorAll('.opt').forEach((b, j) => {
+    b.disabled = true;
+    if (perm[j] === q[5]) b.classList.add('good');
+    else if (j === i) b.classList.add('bad');
+    else b.classList.add('dim');
+  });
+  const shownLetter = LET[perm.indexOf(q[5])];
+  $('fb').innerHTML = '<div class="fb ' + (correct ? 'ok' : 'no') + '">' +
+    '<span class="h">' + (correct ? 'Верно' : 'Неверно — правильный ответ ' + shownLetter) + '</span>' +
+    '<span>' + fmt(q[6]) + '</span>' +
+    (P.shO && q[0] > 76 ? '<span class="orig">В билете это вариант ' + LET[q[5]] + '</span>' : '') + '</div>';
+  const nb = $('nextBtn'); nb.textContent = pos + 1 < queue.length ? 'Дальше →' : 'Итоги →'; nb.focus();
+  renderMap(); renderBar();
+}
+
+function next(){ pos++; renderQuiz(); renderMap(); }
+
+function renderDone(){
+  const total = sess.ok + sess.bad, skipped = queue.length - total;
+  const pass = sess.bad === 0 && total > 0;
+  const pad = n => String(n).padStart(4, ' ');
+  const pct = total ? Math.round(sess.ok / total * 100) : 0;
+  const wrongN = Q.filter(inSec).filter(q => status(q[0]) === 'no').length;
+  $('main').innerHTML = '<div class="card">' +
+    '<div class="term"><span class="p">$ dotnet test</span>\nТестовый прогон завершён. Результат: ' + pct + '%\n' +
+    (pass ? '<span class="g">Passed!</span>' : '<span class="r">Failed!</span>') +
+    '  - Failed:' + pad(sess.bad) + ', Passed:' + pad(sess.ok) + ', Skipped:' + pad(skipped) + ', Total:' + pad(queue.length) + '</div>' +
+    '<div class="nav">' +
+      (wrongN ? '<button class="btn primary" id="redoWrong">Повторить ошибки (' + wrongN + ')</button>' : '') +
+      '<button class="btn" id="redoAll">Пройти заново</button>' +
+      '<button class="btn" id="toList">Открыть шпаргалку</button></div></div>';
+  $('redoWrong') && ($('redoWrong').onclick = () => { onlyWrong = true; start(); });
+  $('redoAll').onclick = () => { onlyWrong = false; start(); };
+  $('toList').onclick = () => setMode('list');
+}
+
+function renderList(){
+  const s = search.trim().toLowerCase();
+  const items = Q.filter(inSec).filter(q => !s || String(q[0]) === s || (q[2] + ' ' + (q[3] || '') + ' ' + q[4].join(' ') + ' ' + q[6]).toLowerCase().includes(s));
+  const main = $('main');
+  if (!$('search')) {
+    main.innerHTML = '<input class="search" id="search" type="search" placeholder="Поиск по номеру, тексту или варианту (например: dotnet publish)"><div class="list" id="list"></div>';
+    $('search').value = search;
+    $('search').addEventListener('input', e => { search = e.target.value; renderList(); });
+  }
+  $('list').innerHTML = items.length ? items.map(q => {
+    const st = status(q[0]);
+    return '<article class="item"><div class="num">№' + q[0] + ' · ' + secName(q[1]) + approx(q[0]) +
+      (st ? ' <span class="badge ' + st + '">' + (st === 'ok' ? 'верно' : 'была ошибка') + '</span>' : '') + '</div>' +
+      '<p class="q">' + fmt(q[2]) + '</p>' + (q[3] ? '<pre>' + esc(q[3]) + '</pre>' : '') +
+      '<ol>' + q[4].map((o, i) => '<li class="' + (i === q[5] ? 'ans' : '') + '"><b>' + LET[i] + ')</b><span>' + fmt(o) + '</span></li>').join('') + '</ol>' +
+      '<div class="note">' + fmt(q[6]) + '</div></article>';
+  }).join('') : '<p class="empty">Ничего не найдено.</p>';
+}
+
+function render(){
+  renderBar(); renderMap();
+  if (P.mode === 'quiz') renderQuiz(); else renderList();
+}
+function start(){ buildQueue(); save('tr84-pref', P); render(); }
+function setMode(m){ P.mode = m; save('tr84-pref', P); $('main').innerHTML = ''; if (m === 'quiz' && (!queue.length || pos >= queue.length)) buildQueue(); render(); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.mode) setMode(t.dataset.mode);
+  else if (t.dataset.sec) { P.sec = t.dataset.sec; onlyWrong = false; if (P.mode === 'quiz') start(); else { save('tr84-pref', P); render(); } }
+  else if (t.dataset.i != null) answer(+t.dataset.i);
+  else if (t.id === 'nextBtn') next();
+  else if (t.id === 'wrongBtn') { onlyWrong = !onlyWrong; P.mode = 'quiz'; $('main').innerHTML=''; start(); }
+  else if (t.id === 'restartBtn') { onlyWrong = false; start(); }
+  else if (t.dataset.jump) {
+    const n = +t.dataset.jump;
+    if (P.mode !== 'quiz') { P.mode = 'quiz'; $('main').innerHTML=''; }
+    if (!queue.includes(n)) { onlyWrong = false; buildQueue(); }
+    const at = queue.indexOf(n);
+    if (at < pos || pos >= queue.length) { queue.splice(at, 1); pos = Math.min(pos, queue.length); queue.splice(pos, 0, n); }
+    else { queue.splice(at, 1); queue.splice(pos, 0, n); }
+    save('tr84-pref', P); render();
+    window.scrollTo({top: $('main').offsetTop - 12, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  }
+  else if (t.id === 'resetBtn') {
+    if (!resetArmed) { resetArmed = true; t.textContent = 'Точно сбросить? Нажмите ещё раз'; setTimeout(() => { resetArmed = false; t.textContent = 'Сбросить прогресс'; }, 3000); }
+    else { resetArmed = false; t.textContent = 'Сбросить прогресс'; S = {}; save('tr84-stats', S); onlyWrong = false; start(); }
+  }
+});
+$('shq').addEventListener('change', e => { P.shQ = e.target.checked; start(); });
+$('sho').addEventListener('change', e => { P.shO = e.target.checked; save('tr84-pref', P); if (!answered) renderQuiz(); });
+
+document.addEventListener('keydown', e => {
+  if (P.mode !== 'quiz' || e.target.matches('input, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  const map = {a:0,b:1,c:2,d:3,e:4,'1':0,'2':1,'3':2,'4':3,'5':4,'ф':0,'и':1,'с':2,'в':3,'у':4};
+  if (k in map && !answered) { e.preventDefault(); answer(map[k]); }
+  else if ((k === 'enter' || k === 'arrowright') && pos < queue.length && document.activeElement?.id !== 'nextBtn') { e.preventDefault(); next(); }
+});
+
+try { if (matchMedia('(max-width: 600px)').matches) $('mapBox').open = false; } catch(e){}
+buildQueue(); render();
+</script>
+
+</html>
